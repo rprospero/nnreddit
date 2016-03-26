@@ -83,8 +83,8 @@ If nil, only insert comments when the keybinding for
   "Whether to display images in the body of 'link' articles."
   :group 'nnreddit)
 
-(defcustom nnreddit-preferred-preview-width 640
-  "Preferred width of the preview images in 'link' articles."
+(defcustom nnreddit-preview-width 320
+  "Width of the preview images in 'link' articles."
   :group 'nnreddit)
 
 (defcustom nnreddit-num-comments-in-subject "(%d) "
@@ -203,10 +203,12 @@ according to the given format string."
             preview
             (let ((image-url (nnreddit-find-preview-image-url
                               preview
-                              nnreddit-preferred-preview-width)))
+                              nnreddit-preview-width)))
               (if (nnreddit-field-exists image-url)
                   (nnreddit-decode-entities-string
-                   (concat (format "<img src=\"%s\"/>" image-url)
+                   (concat (format "<img width=\"%d\" src=\"%s\"/>"
+                                   nnreddit-preview-width
+                                   image-url)
                            ;; Append the link if provided
                            (and (nnreddit-field-exists url)
                                 (format "<br/><br/><a href=\"%s\">%s</a>"
@@ -216,8 +218,8 @@ according to the given format string."
             (nnreddit-field-exists thumbnail) notself)
        (nnreddit-decode-entities-string
         (if (nnreddit-field-exists url)
-            (format "<a href=\"%s\"><img src=\"%s\"></a><br/><a href=\"%s\">%s</a>"
-                    url thumbnail url url)
+            (format "<a href=\"%s\"><img width=\"%d\" src=\"%s\"></a><br/><a href=\"%s\">%s</a>"
+                    url nnreddit-preview-width thumbnail url url)
           (format "<img src=\"%s\">" thumbnail))))
       ;; Or just insert the link if this is not a "self" post
       ((and (nnreddit-field-exists url) notself)

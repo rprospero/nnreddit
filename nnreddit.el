@@ -107,7 +107,7 @@ according to the given format string."
 
 (defvar nnreddit-subreddit nil)
 (defvar nnreddit-subreddits-hashtb nil)
-(defvar nnreddit-data-by-id nil)
+(defvar nnreddit-data-by-id-by-subreddit nil)
 (defvar nnreddit-link-articles-ids nil)
 (defvar nnreddit-fetched-comment-pages nil)
 (defvar nnreddit-links-by-reddit-ids nil)
@@ -399,12 +399,15 @@ set to nil."
              (nnreddit-elide-subject decoded nnreddit-elide-comment-subjects))))))
     header))
 
+(defun nnreddit-get-subreddit-articles ()
+  (gethash nnreddit-subreddit nnreddit-data-by-id-by-subreddit))
+
 (defun nnreddit-retrieve-headers (articles &optional group server fetch-old)
   (nnreddit-possibly-change-group group)
   (with-current-buffer nntp-server-buffer
     (erase-buffer)
     (dolist (id articles)
-      (let ((value (gethash id nnreddit-data-by-id)))
+      (let ((value (gethash id (nnreddit-get-subreddit-articles))))
         (when value
           (let ((header (car value))
                 (data (cadr value))
@@ -449,7 +452,7 @@ proper citation marks."
   (nnreddit-possibly-change-group group)
   (with-current-buffer (or buffer nntp-server-buffer)
     (erase-buffer)
-    (let ((value (gethash id nnreddit-data-by-id)))
+    (let ((value (gethash id (nnreddit-get-subreddit-articles))))
       (when value
         (let ((header (car value))
               (data (cadr value))
@@ -510,7 +513,7 @@ proper citation marks."
           (cons nnreddit-subreddit id))))))
 
 (defun nnreddit-insert-comments (id)
-  (let ((value (gethash id nnreddit-data-by-id)))
+  (let ((value (gethash id (nnreddit-get-subreddit-articles))))
     (when value
       (let* ((data (cadr value))
              (link-reddit-id (plist-get data :id))
@@ -529,7 +532,7 @@ proper citation marks."
                          (nnreddit-parse-comments json-data link-reddit-id t))))
                  (puthash link-reddit-id comments nnreddit-fetched-comment-pages))))
              ;; Make sure to always create new article IDs
-             (n (hash-table-count nnreddit-data-by-id))
+             (n (hash-table-count (nnreddit-get-subreddit-articles)))
              comment-ids)
         (dolist (c comments)
           ;; Only create a new article for this comment if one does
@@ -550,7 +553,7 @@ proper citation marks."
                  header
                  (plist-get data :title))
                 (push n comment-ids)
-                (puthash n (list header c 'comment) nnreddit-data-by-id)
+                (puthash n (list header c 'comment) (nnreddit-get-subreddit-articles))
                 (puthash comment-reddit-id (list n c) nnreddit-comments-by-reddit-ids)
                 ))))
         (let ((new-limit (number-sequence 1 n)))
@@ -586,7 +589,7 @@ proper citation marks."
         (dolist (l links)
           (let ((id (plist-get l :id))
                 (header (nnreddit-make-header l (incf n))))
-            (puthash n (list header l 'link) nnreddit-data-by-id)
+            (puthash n (list header l 'link) (nnreddit-get-subreddit-articles))
             (puthash id (list n l) nnreddit-links-by-reddit-ids)
             (cl-pushnew n nnreddit-link-articles-ids)
             ))
@@ -642,8 +645,8 @@ proper citation marks."
   t)
 
 (defun nnreddit-possibly-change-group (&optional group)
-  (unless nnreddit-data-by-id
-    (setq nnreddit-data-by-id (make-hash-table :size 1024)))
+  (unless nnreddit-data-by-id-by-subreddit
+    (setq nnreddit-data-by-id-by-subreddit (make-hash-table :size 128 :test 'equal)))
   (unless nnreddit-fetched-comment-pages
     (setq nnreddit-fetched-comment-pages (make-hash-table :size 1024 :test 'equal)))
   (unless nnreddit-links-by-reddit-ids
@@ -651,7 +654,12 @@ proper citation marks."
   (unless nnreddit-comments-by-reddit-ids
     (setq nnreddit-comments-by-reddit-ids (make-hash-table :size 1024 :test 'equal)))
   (when group
-    (setq nnreddit-subreddit group)))
+    (setq nnreddit-subreddit group)
+    (unless (gethash nnreddit-subreddit
+                     nnreddit-data-by-id-by-subreddit)
+      (puthash nnreddit-subreddit
+               (make-hash-table :size 1024)
+               nnreddit-data-by-id-by-subreddit))))
 
 (gnus-declare-backend "nnreddit" 'none)
 

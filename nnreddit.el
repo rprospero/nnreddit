@@ -108,7 +108,6 @@ according to the given format string."
 (defvar nnreddit-subreddit nil)
 (defvar nnreddit-subreddits-hashtb nil)
 (defvar nnreddit-data-by-id-by-subreddit nil)
-(defvar nnreddit-link-articles-ids nil)
 (defvar nnreddit-fetched-comment-pages nil)
 (defvar nnreddit-links-by-reddit-ids nil)
 (defvar nnreddit-comments-by-reddit-ids nil)
@@ -402,6 +401,14 @@ set to nil."
 (defun nnreddit-get-subreddit-articles ()
   (gethash nnreddit-subreddit nnreddit-data-by-id-by-subreddit))
 
+(defun nnreddit-get-subreddit-article-ids ()
+  (let (ids)
+    (maphash (lambda (id value)
+              (if (eq (caddr value) 'link)
+                  (push id ids)))
+            (nnreddit-get-subreddit-articles))
+    (nreverse ids)))
+
 (defun nnreddit-retrieve-headers (articles &optional group server fetch-old)
   (nnreddit-possibly-change-group group)
   (with-current-buffer nntp-server-buffer
@@ -570,7 +577,7 @@ proper citation marks."
 (defun nnreddit-expand-thread (&optional article)
   (let ((article (or article (gnus-summary-article-number))))
     (when (and (nnreddit-is-nnreddit)
-               (member article nnreddit-link-articles-ids))
+               (member article (nnreddit-get-subreddit-article-ids)))
       (nnreddit-insert-comments article))))
 
 (defun nnreddit-request-group (group &optional server dont-check info)
@@ -585,13 +592,11 @@ proper citation marks."
              (links
               (nnreddit-parse-subreddit json-data))
              (n 0))
-        (setq nnreddit-link-articles-ids nil)
         (dolist (l links)
           (let ((id (plist-get l :id))
                 (header (nnreddit-make-header l (incf n))))
             (puthash n (list header l 'link) (nnreddit-get-subreddit-articles))
             (puthash id (list n l) nnreddit-links-by-reddit-ids)
-            (cl-pushnew n nnreddit-link-articles-ids)
             ))
         (nnheader-insert "211 %d %d %d %s\n" n 1 n group)))))
   t)
@@ -675,7 +680,7 @@ proper citation marks."
           '(lambda ()
              (when (and
                         nnreddit-auto-open-threads
-                        (member article nnreddit-link-articles-ids))
+                        (member article (nnreddit-get-subreddit-article-ids)))
                (nnreddit-expand-thread article))))
 
 ;; This function replaces the keybinding for `gnus-summary-show-thread'.

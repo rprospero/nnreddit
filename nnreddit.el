@@ -564,15 +564,14 @@ proper citation marks."
                 (puthash comment-reddit-id (list n c) nnreddit-comments-by-reddit-ids)
                 ))))
         (let ((new-limit (number-sequence 1 n)))
-          (unless (equal new-limit gnus-newsgroup-limit)
-            (gnus-summary-insert-articles comment-ids)
-            (gnus-summary-limit new-limit)
-            ;; `gnus-summary-limit' seems to auto-expand all other threads,
-            ;; so we close them and re-expand the current thread
-            (save-excursion
-              (gnus-summary-hide-all-threads)
-              (gnus-summary-goto-article id)
-              (gnus-summary-show-thread))))))))
+          (gnus-summary-insert-articles comment-ids)
+          (gnus-summary-limit new-limit)
+          ;; `gnus-summary-limit' seems to auto-expand all other threads,
+          ;; so we close them and re-expand the current thread
+          (save-excursion
+            (gnus-summary-hide-all-threads)
+            (gnus-summary-goto-subject id)
+            (gnus-summary-show-thread)))))))
 
 (defun nnreddit-expand-thread (&optional article)
   (let ((article (or article (gnus-summary-article-number))))
@@ -678,8 +677,7 @@ proper citation marks."
 ;; when a 'post' article is selected
 (add-hook 'gnus-select-article-hook
           '(lambda ()
-             (when (and
-                        nnreddit-auto-open-threads
+             (when (and nnreddit-auto-open-threads
                         (member article (nnreddit-get-subreddit-article-ids)))
                (nnreddit-expand-thread article))))
 

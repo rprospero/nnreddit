@@ -679,7 +679,8 @@ proper citation marks."
 ;; when a 'post' article is selected
 (add-hook 'gnus-select-article-hook
           '(lambda ()
-             (when (and nnreddit-auto-open-threads
+             (when (and (nnreddit-is-nnreddit)
+                        nnreddit-auto-open-threads
                         (member article (nnreddit-get-subreddit-article-ids)))
                (nnreddit-expand-thread article))))
 

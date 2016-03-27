@@ -5,12 +5,14 @@ NOTE: currently for reading only, login and posting not yet implemented.
 
 ## Usage
 
-Add this line to your `.emacs` or `.gnus` file:
+Add these lines to your `.emacs` or `.gnus` file:
 ```lisp
 (require 'nnreddit "/path/to/nnreddit.el")
+(add-to-list 'gnus-secondary-select-methods
+             '(nnreddit ""))
 ```
 
-Then subscribe to a group from within Gnus, either by pressing 'U' in the Group buffer and entering "nnreddit:some-subreddit", or with following command:
+Then subscribe to a group from within Gnus, either by pressing 'U' in the Group buffer and entering "nnreddit:some-subreddit", or with the following command:
 ```lisp
 (gnus-group-unsubscribe-group "nnreddit:some-subreddit")
 ```

@@ -403,10 +403,15 @@ set to nil."
 (defun nnreddit-get-subreddit-articles ()
   (gethash nnreddit-subreddit nnreddit-data-by-id-by-subreddit))
 
-(defun nnreddit-get-subreddit-article-ids ()
+(defun nnreddit-get-subreddit-article-ids (&optional not-root)
   (let (ids)
     (maphash (lambda (id value)
-              (if (eq (caddr value) 'link)
+              (if (and (eq (caddr value) 'link)
+                       ;; Exclude root articles when requested (root
+                       ;; articles are single 'link' articles that
+                       ;; serve as root of the group when the group is
+                       ;; actually a single thread)
+                       (or (not not-root) (not (cadddr value))))
                   (push id ids)))
             (nnreddit-get-subreddit-articles))
     (nreverse ids)))
@@ -521,11 +526,36 @@ proper citation marks."
           ;; Return value, as per Gnus documentation
           (cons nnreddit-subreddit id))))))
 
+(defmacro nnreddit-generate-comments (comments parent-link n)
+  `(let (comment-ids)
+     (dolist (c ,comments)
+       ;; Only create a new article for this comment if one does
+       ;; not already exist in the cache
+       (let* ((comment-reddit-id (plist-get c :id))
+              (value (gethash comment-reddit-id nnreddit-comments-by-reddit-ids)))
+         (if value
+             (push (car value) comment-ids)
+           (let ((header (nnreddit-make-header c (incf ,n)))
+                 (parent-id (or (plist-get c :parent_id)
+                                (plist-get ,parent-link :id))))
+             ;; FIXME: do this directly in `nnreddit-make-header'??
+             (mail-header-set-references
+              header
+              (nnreddit-make-message-id parent-id))
+             ;; FIXME: do this directly in `nnreddit-make-header'??
+             (mail-header-set-subject
+              header
+              (plist-get ,parent-link :title))
+             (push ,n comment-ids)
+             (puthash ,n (list header c 'comment) (nnreddit-get-subreddit-articles))
+             (puthash comment-reddit-id (list ,n c) nnreddit-comments-by-reddit-ids)))))
+     comment-ids))
+
 (defun nnreddit-insert-comments (id)
   (let ((value (gethash id (nnreddit-get-subreddit-articles))))
     (when value
-      (let* ((data (cadr value))
-             (link-reddit-id (plist-get data :id))
+      (let* ((link (cadr value))
+             (link-reddit-id (plist-get link :id))
              (comments
               (or
                ;; Don't fetch comments again if they are cached
@@ -542,29 +572,10 @@ proper citation marks."
                  (puthash link-reddit-id comments nnreddit-fetched-comment-pages))))
              ;; Make sure to always create new article IDs
              (n (hash-table-count (nnreddit-get-subreddit-articles)))
-             comment-ids)
-        (dolist (c comments)
-          ;; Only create a new article for this comment if one does
-          ;; not already exist in the cache
-          (let* ((comment-reddit-id (plist-get c :id))
-                 (value (gethash comment-reddit-id nnreddit-comments-by-reddit-ids)))
-            (if value
-                (push (car value) comment-ids)
-              (let ((header (nnreddit-make-header c (incf n)))
-                    (parent-id (or (plist-get c :parent_id)
-                                   (plist-get data :id))))
-                ;; FIXME: do this directly in `nnreddit-make-header'??
-                (mail-header-set-references
-                 header
-                 (nnreddit-make-message-id parent-id))
-                ;; FIXME: do this directly in `nnreddit-make-header'??
-                (mail-header-set-subject
-                 header
-                 (plist-get data :title))
-                (push n comment-ids)
-                (puthash n (list header c 'comment) (nnreddit-get-subreddit-articles))
-                (puthash comment-reddit-id (list n c) nnreddit-comments-by-reddit-ids)
-                ))))
+             ;; Generate comments, fill in hash tables, and return
+             ;; article IDs of the generated comments
+             (comment-ids
+              (nnreddit-generate-comments comments link n)))
         (let ((new-limit (number-sequence 1 n)))
           (gnus-summary-insert-articles comment-ids)
           (gnus-summary-limit new-limit)
@@ -575,10 +586,15 @@ proper citation marks."
             (gnus-summary-goto-subject id)
             (gnus-summary-show-thread)))))))
 
+(defun nnreddit-should-fetch-thread (article)
+  "Check if the current article is a 'link' article, and is not
+the \"root article\" of the group."
+  (member article (nnreddit-get-subreddit-article-ids t)))
+
 (defun nnreddit-expand-thread (&optional article)
   (let ((article (or article (gnus-summary-article-number))))
     (when (and (nnreddit-is-nnreddit)
-               (member article (nnreddit-get-subreddit-article-ids)))
+               (nnreddit-should-fetch-thread article))
       (nnreddit-insert-comments article))))
 
 (defun nnreddit-request-group (group &optional server dont-check info)
@@ -588,17 +604,34 @@ proper citation marks."
      ((not nnreddit-subreddit)
       (nnheader-report 'nnreddit "No subreddit selected"))
      (t
-      (let* ((json-data
-              (nnreddit-retrieve-subreddit-json nnreddit-subreddit))
-             (links
-              (nnreddit-parse-subreddit json-data))
-             (n 0))
-        (dolist (l links)
-          (let ((id (plist-get l :id))
-                (header (nnreddit-make-header l (incf n))))
-            (puthash n (list header l 'link) (nnreddit-get-subreddit-articles))
-            (puthash id (list n l) nnreddit-links-by-reddit-ids)
-            ))
+      (let ((json-data
+             (nnreddit-retrieve-subreddit-json nnreddit-subreddit))
+            (n 0))
+        (cond
+         ((arrayp json-data)
+          ;; The requested group is actually a Reddit thread
+          (let* ((link (nnreddit-parse-link
+                        (aref
+                         (assoc-default 'children
+                                        (assoc-default 'data (aref json-data 0))) 0)))
+                 (id (plist-get link :id))
+                 (comments (nnreddit-flatten-comments
+                            (nnreddit-parse-comments json-data id t)))
+                 (header (nnreddit-make-header link (incf n))))
+            ;; Create one "link" article, marked as a special "root article"
+            ;; (4th parameter in the hash table)
+            (puthash n (list header link 'link t) (nnreddit-get-subreddit-articles))
+            (puthash id (list n link) nnreddit-links-by-reddit-ids)
+            ;; Then generate comments and fill in hash tables
+            (nnreddit-generate-comments comments link n)))
+         (t
+          ;; The requested group is a subreddit
+          (let ((links (nnreddit-parse-subreddit json-data)))
+            (dolist (l links)
+              (let ((id (plist-get l :id))
+                    (header (nnreddit-make-header l (incf n))))
+                (puthash n (list header l 'link) (nnreddit-get-subreddit-articles))
+                (puthash id (list n l) nnreddit-links-by-reddit-ids))))))
         (nnheader-insert "211 %d %d %d %s\n" n 1 n group)))))
   t)
 
@@ -681,7 +714,7 @@ proper citation marks."
           '(lambda ()
              (when (and (nnreddit-is-nnreddit)
                         nnreddit-auto-open-threads
-                        (member article (nnreddit-get-subreddit-article-ids)))
+                        (nnreddit-should-fetch-thread article))
                (nnreddit-expand-thread article))))
 
 ;; This function replaces the keybinding for `gnus-summary-show-thread'.

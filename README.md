@@ -17,6 +17,15 @@ Then subscribe to a group from within Gnus, either by pressing 'U' in the Group 
 (gnus-group-unsubscribe-group "nnreddit:some-subreddit")
 ```
 
+You can also browse individual threads (or sub-threads) with the following syntax:
+```lisp
+;; Single thread
+(gnus-group-unsubscribe-group "nnreddit:some-subreddit/comments/link-id")
+;; Sub-thread
+(gnus-group-unsubscribe-group "nnreddit:some-subreddit/comments/link-id/comments/comment-id")
+```
+In other words, simply take the URL of any Reddit thread, replace "ht<b></b>tps://www.reddit.com/r/" with "nnreddit:" and subscribe to that in Gnus.
+
 ## Screenshots
 
 <a href="https://raw.githubusercontent.com/paul-issartel/nnreddit/master/screenshot.png"><img src="https://raw.githubusercontent.com/paul-issartel/nnreddit/master/screenshot.png" alt="Screenshot of a Reddit link article in Gnus" width="500"/></a>

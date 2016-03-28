@@ -26,6 +26,8 @@ You can also browse individual threads (or sub-threads) with the following synta
 ```
 In other words, simply take the URL of any Reddit thread, replace "ht<b></b>tps://www.reddit.com/r/" with "nnreddit:" and subscribe to that in Gnus.
 
+Alternatively, you can subscribe to a thread or sub-thread directly from the summary buffer with the `nnreddit-subscribe-to-thread' command.
+
 ## Screenshots
 
 <a href="https://raw.githubusercontent.com/paul-issartel/nnreddit/master/screenshot.png"><img src="https://raw.githubusercontent.com/paul-issartel/nnreddit/master/screenshot.png" alt="Screenshot of a Reddit link article in Gnus" width="500"/></a>

@@ -22,7 +22,7 @@
 
 ;;; Commentary:
 
-;; 
+;;
 
 ;;; Code:
 
@@ -30,6 +30,7 @@
 
 (require 'nnheader)
 (require 'nnoo)
+(require 'gnus-group)
 (require 'gnus-sum)
 (require 'gnus-art)
 (require 'gnus-util)
@@ -110,7 +111,7 @@ according to the given format string."
 (defvar nnreddit-data-by-id-by-subreddit nil)
 (defvar nnreddit-fetched-comment-pages nil)
 (defvar nnreddit-links-by-reddit-ids nil)
-(defvar nnreddit-comments-by-reddit-ids nil)
+(defvar nnreddit-comments-by-reddit-ids-by-subreddit nil)
 
 ;; From: https://github.com/death/reddit-mode/blob/master/reddit.el
 (defmacro nnreddit-alet (vars alist &rest forms)
@@ -403,6 +404,9 @@ set to nil."
 (defun nnreddit-get-subreddit-articles ()
   (gethash nnreddit-subreddit nnreddit-data-by-id-by-subreddit))
 
+(defun nnreddit-get-subreddit-comments ()
+  (gethash nnreddit-subreddit nnreddit-comments-by-reddit-ids-by-subreddit))
+
 (defun nnreddit-get-subreddit-article-ids (&optional not-root)
   (let (ids)
     (maphash (lambda (id value)
@@ -505,7 +509,7 @@ proper citation marks."
                 (let* ((parent-id (plist-get data :parent_id))
                        (parent (and parent-id
                                     (or (gethash parent-id nnreddit-links-by-reddit-ids)
-                                        (gethash parent-id nnreddit-comments-by-reddit-ids))))
+                                        (gethash parent-id (nnreddit-get-subreddit-comments)))))
                        (parent (and parent (cadr parent)))
                        (parent-text (and parent (plist-get parent :text))))
                   (when (and parent parent-text)
@@ -532,7 +536,8 @@ proper citation marks."
        ;; Only create a new article for this comment if one does
        ;; not already exist in the cache
        (let* ((comment-reddit-id (plist-get c :id))
-              (value (gethash comment-reddit-id nnreddit-comments-by-reddit-ids)))
+              (value (gethash comment-reddit-id
+                              (nnreddit-get-subreddit-comments))))
          (if value
              (push (car value) comment-ids)
            (let ((header (nnreddit-make-header c (incf ,n)))
@@ -548,7 +553,7 @@ proper citation marks."
               (plist-get ,parent-link :title))
              (push ,n comment-ids)
              (puthash ,n (list header c 'comment) (nnreddit-get-subreddit-articles))
-             (puthash comment-reddit-id (list ,n c) nnreddit-comments-by-reddit-ids)))))
+             (puthash comment-reddit-id (list ,n c) (nnreddit-get-subreddit-comments))))))
      comment-ids))
 
 (defun nnreddit-insert-comments (id)
@@ -690,17 +695,63 @@ the \"root article\" of the group."
     (setq nnreddit-fetched-comment-pages (make-hash-table :size 1024 :test 'equal)))
   (unless nnreddit-links-by-reddit-ids
     (setq nnreddit-links-by-reddit-ids (make-hash-table :size 1024 :test 'equal)))
-  (unless nnreddit-comments-by-reddit-ids
-    (setq nnreddit-comments-by-reddit-ids (make-hash-table :size 1024 :test 'equal)))
+  (unless nnreddit-comments-by-reddit-ids-by-subreddit
+    (setq nnreddit-comments-by-reddit-ids-by-subreddit (make-hash-table :size 128 :test 'equal)))
   (when group
-    (setq nnreddit-subreddit group)
+    (setq nnreddit-subreddit
+          ;; Remove trailing slashes
+          (replace-regexp-in-string "/$" "" group))
     (unless (gethash nnreddit-subreddit
                      nnreddit-data-by-id-by-subreddit)
       (puthash nnreddit-subreddit
                (make-hash-table :size 1024)
-               nnreddit-data-by-id-by-subreddit))))
+               nnreddit-data-by-id-by-subreddit))
+    (unless (gethash nnreddit-subreddit
+                     nnreddit-comments-by-reddit-ids-by-subreddit)
+      (puthash nnreddit-subreddit
+               (make-hash-table :size 1024)
+               nnreddit-comments-by-reddit-ids-by-subreddit))))
 
 (gnus-declare-backend "nnreddit" 'none)
+
+(defun nnreddit-subscribe-to-thread (group)
+  "Subscribe to the thread or sub-thread at point."
+  (interactive
+   (list
+    (let* ((article (gnus-summary-article-number))
+           (value (gethash article
+                           (nnreddit-get-subreddit-articles)))
+           (data (cadr value))
+           (type (caddr value))
+           (reddit-id (plist-get data :id))
+           (subreddit
+            (replace-regexp-in-string "/.*$" "" nnreddit-subreddit))
+           (url (concat
+                 (symbol-name
+                  (car (gnus-find-method-for-group gnus-newsgroup-name)))
+                 ":"
+                 ;; FIXME: create new constants for these format strings
+                 (cond
+                  ((eq type 'link)
+                   (format "%s/comments/%s" subreddit reddit-id))
+                  ((eq type 'comment)
+                   (let* ((root-article
+                           (let ((parent article) a)
+                             (while parent
+                               (setq a parent)
+                               (setq parent (gnus-summary-article-parent parent)))
+                             a))
+                          (root-reddit-id
+                           (plist-get
+                            (cadr
+                             (gethash root-article
+                                      (nnreddit-get-subreddit-articles))) :id)))
+                     (format "%s/comments/%s/comments/%s"
+                             subreddit
+                             root-reddit-id
+                             reddit-id)))))))
+      (gnus-group-completing-read nil nil nil url))))
+  (gnus-group-unsubscribe-group group))
 
 ;; ======================================================
 ;; Add a few hooks to automatically expand comments, etc.

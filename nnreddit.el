@@ -176,11 +176,13 @@
                           (plist-dive msg :data :subject)
                           "*"))))
      (with-current-buffer buffer
+       (read-only-mode -1)
        (erase-buffer)
        (insert
         (reddit-message-unescape
          (plist-dive msg :data :body)))
        (markdown-mode)
+       (read-only-mode 1)
        buffer))))
 
 ;; Example Code

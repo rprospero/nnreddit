@@ -115,6 +115,16 @@
              (plist-get (plist-get (nnreddit-get-messages) :data) :children)))
   (tabulated-list-print))
 
+(defvar reddit-message-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map tabulated-list-mode-map)
+    (define-key map (kbd "RET") 'reddit-message-display)
+    map))
+
+(defun reddit-message-display ()
+  (interactive)
+  (message (concat "current line ID is: " (tabulated-list-get-id))))
+
 (define-derived-mode reddit-message-mode
   tabulated-list-mode "Reddit" "Major Mode for Reddit messages"
   (setq tabulated-list-format

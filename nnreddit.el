@@ -104,18 +104,21 @@
 
 (defun nnreddit-parse-message (message)
   (list
-   (plist-get (plist-get message :data) :id)
+   (plist-dive message :data :id)
    (vector
-    (plist-get (plist-get message :data) :author)
-    (plist-get (plist-get message :data) :subject))))
+    (plist-dive message :data :author)
+    (plist-dive message :data :subject))))
 
 
 ;;;;;  Reddit Message Mode bits
 
+(defvar reddit-message-mode-message-data (vector))
+
 (defun reddit-message-mode-revert-messages ()
+  (setq reddit-message-mode-message-data
+        (plist-dive (nnreddit-get-messages) :data :children))
   (setq tabulated-list-entries
-        (map 'list #'nnreddit-parse-message
-             (plist-get (plist-get (nnreddit-get-messages) :data) :children)))
+        (map 'list #'nnreddit-parse-message reddit-message-mode-message-data))
   (tabulated-list-print))
 
 (defvar reddit-message-mode-map
@@ -124,9 +127,22 @@
     (define-key map (kbd "RET") 'reddit-message-display)
     map))
 
+(defun plist-dive (plist &rest args)
+  (if args
+      (apply #'plist-dive (cons (plist-get plist (car args)) (cdr args)))
+    plist))
+
 (defun reddit-message-display ()
   (interactive)
-  (message (concat "current line ID is: " (tabulated-list-get-id))))
+  ;; (message (concat "current line ID is: " (tabulated-list-get-id))))
+  (message
+   (plist-dive
+    (elt
+     (cl-remove-if-not
+      (lambda (x) (equal (plist-dive x :data :id) (tabulated-list-get-id)))
+      reddit-message-mode-message-data)
+     0)
+    :data :body)))
 
 (define-derived-mode reddit-message-mode
   tabulated-list-mode "Reddit" "Major Mode for Reddit messages"

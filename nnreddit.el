@@ -71,6 +71,26 @@
      `("Authorization" .
       ,(concat "bearer " (oauth2-token-access-token (nnreddit-current-oauth-token)))))))
 
+(defun nnreddit-put-url (url query-params)
+  (oauth2-url-retrieve-synchronously
+   (nnreddit-current-oauth-token)
+   url
+   "POST"
+   (url-build-query-string query-params)
+   (list
+    '("User-Agent" . "Emacs:jMzai5COV_P9zg:v0.1 by /u/physicologist")
+     `("Authorization" .
+       ,(concat "bearer "
+                (oauth2-token-access-token (nnreddit-current-oauth-token)))))))
+
+(defun nnreddit-post-message (recipient subject text)
+  (let ((params
+         `(( "api_type" "json")
+           ("subject" ,subject)
+           ("text" ,text)
+           ("to" ,recipient))))
+    (nnreddit-put-url "https://oauth.reddit.com/api/compose" params)))
+
 ;; Example Code
 
 ;; (switch-to-buffer
@@ -78,6 +98,9 @@
 
 ;; (switch-to-buffer
 ;;  (nnreddit-fetch-url "https://oauth.reddit.com/api/v1/me"))
+
+;; (switch-to-buffer
+;;  (nnreddit-post-message "physicologist" "From emacs" "Here it is"))
 
 ;;;; Basic nnreddit code
 

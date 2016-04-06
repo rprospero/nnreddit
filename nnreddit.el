@@ -125,6 +125,14 @@
   (add-hook 'tabulated-list-revert-hook
             #'reddit-message-mode-revert-messages))
 
+(defun reddit-message ()
+  (interactive)
+  (switch-to-buffer
+   (let ((buffer (get-buffer-create "*Reddit Messages*")))
+     (with-current-buffer buffer
+       (reddit-message-mode)
+       buffer))))
+
 ;; Example Code
 
 ;; (switch-to-buffer

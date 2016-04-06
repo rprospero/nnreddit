@@ -102,6 +102,29 @@
 (defun nnreddit-get-messages ()
   (nnreddit-fetch-url "https://oauth.reddit.com/message/inbox.json"))
 
+(defun nnreddit-parse-message (message)
+  (list
+   (plist-get (plist-get message :data) :id)
+   (vector
+    (plist-get (plist-get message :data) :author)
+    (plist-get (plist-get message :data) :subject))))
+
+(defun reddit-message-mode-revert-messages ()
+  (setq tabulated-list-entries
+        (map 'list #'nnreddit-parse-message
+             (plist-get (plist-get (nnreddit-get-messages) :data) :children)))
+  (tabulated-list-print))
+
+(define-derived-mode reddit-message-mode
+  tabulated-list-mode "Reddit" "Major Mode for Reddit messages"
+  (setq tabulated-list-format
+        (vector '("Author" 21 t)
+                '("Title" 100 t)))
+  (tabulated-list-init-header)
+  (reddit-message-mode-revert-messages)
+  (add-hook 'tabulated-list-revert-hook
+            #'reddit-message-mode-revert-messages))
+
 ;; Example Code
 
 ;; (switch-to-buffer

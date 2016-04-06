@@ -37,6 +37,50 @@
 (require 'json)
 (require 'mm-url)
 
+;; Oauth stuff
+
+(defvar nnreddit-oauth-token '()
+  "The current oauth-token for the reddit account")
+
+(defun nnreddit-current-oauth-token ()
+  (progn
+      (unless nnreddit-oauth-token
+        (setq nnreddit-oauth-token
+              (oauth2-auth
+               "https://www.reddit.com/api/v1/authorize?response_type=token&state='foo'&duration=temporary"
+               "https://jMzai5COV_P9zg@www.reddit.com/api/v1/access_token"
+               "jMzai5COV_P9zg"
+               ""
+               "identity privatemessages"
+               "foo"
+               "https://github.com/rprospero/nnreddit")))
+    nnreddit-oauth-token))
+
+(nnreddit-current-oauth-token)
+(unless nnreddit-oauth-token
+  (print "Hello"))
+
+(defun nnreddit-fetch-url (url)
+  (oauth2-url-retrieve-synchronously
+   (nnreddit-current-oauth-token)
+   url
+   "GET"
+   '()
+   (list
+    '("User-Agent" . "Emacs:jMzai5COV_P9zg:v0.1 by /u/physicologist")
+     `("Authorization" .
+      ,(concat "bearer " (oauth2-token-access-token (nnreddit-current-oauth-token)))))))
+
+;; Example Code
+
+;; (switch-to-buffer
+;;  (nnreddit-fetch-url "https://oauth.reddit.com/message/inbox"))
+
+;; (switch-to-buffer
+;;  (nnreddit-fetch-url "https://oauth.reddit.com/api/v1/me"))
+
+;;;; Basic nnreddit code
+
 (nnoo-declare nnreddit)
 
 (nnoo-define-basics nnreddit)

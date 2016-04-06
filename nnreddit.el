@@ -176,6 +176,7 @@
                           (plist-dive msg :data :subject)
                           "*"))))
      (with-current-buffer buffer
+       (erase-buffer)
        (insert
         (reddit-message-unescape
          (plist-dive msg :data :body)))

@@ -109,6 +109,9 @@
     (plist-get (plist-get message :data) :author)
     (plist-get (plist-get message :data) :subject))))
 
+
+;;;;;  Reddit Message Mode bits
+
 (defun reddit-message-mode-revert-messages ()
   (setq tabulated-list-entries
         (map 'list #'nnreddit-parse-message
@@ -145,11 +148,7 @@
 
 ;; Example Code
 
-;; (switch-to-buffer
-;;  (nnreddit-fetch-url "https://oauth.reddit.com/message/inbox"))
-
-;; (switch-to-buffer
-;;  (nnreddit-fetch-url "https://oauth.reddit.com/api/v1/me"))
+;; (nnreddit-fetch-url "https://oauth.reddit.com/api/v1/me")
 
 ;; (nnreddit-post-message "physicologist" "Here comes more" "Whoop! There is is.")
 

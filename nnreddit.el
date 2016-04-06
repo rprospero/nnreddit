@@ -56,29 +56,40 @@
                "https://github.com/rprospero/nnreddit")))
     nnreddit-oauth-token))
 
+(defun nnreddit-parse-body (buffer)
+  (with-current-buffer buffer
+    (goto-char (point-min))
+    (re-search-forward "^$")
+    (delete-region (point) (point-min))
+    (let ((json-object-type 'plist))
+      (let ((value (json-read)))
+        (kill-buffer)
+        value))))
 
 (defun nnreddit-fetch-url (url)
-  (oauth2-url-retrieve-synchronously
-   (nnreddit-current-oauth-token)
-   url
-   "GET"
-   '()
-   (list
-    '("User-Agent" . "Emacs:jMzai5COV_P9zg:v0.1 by /u/physicologist")
+  (nnreddit-parse-body
+   (oauth2-url-retrieve-synchronously
+    (nnreddit-current-oauth-token)
+    url
+    "GET"
+    '()
+    (list
+     '("User-Agent" . "Emacs:jMzai5COV_P9zg:v0.1 by /u/physicologist")
      `("Authorization" .
-      ,(concat "bearer " (oauth2-token-access-token (nnreddit-current-oauth-token)))))))
+       ,(concat "bearer " (oauth2-token-access-token (nnreddit-current-oauth-token))))))))
 
 (defun nnreddit-put-url (url query-params)
-  (oauth2-url-retrieve-synchronously
-   (nnreddit-current-oauth-token)
-   url
-   "POST"
-   (url-build-query-string query-params)
-   (list
-    '("User-Agent" . "Emacs:jMzai5COV_P9zg:v0.1 by /u/physicologist")
+  (nnreddit-parse-body
+   (oauth2-url-retrieve-synchronously
+    (nnreddit-current-oauth-token)
+    url
+    "POST"
+    (url-build-query-string query-params)
+    (list
+     '("User-Agent" . "Emacs:jMzai5COV_P9zg:v0.1 by /u/physicologist")
      `("Authorization" .
        ,(concat "bearer "
-                (oauth2-token-access-token (nnreddit-current-oauth-token)))))))
+                (oauth2-token-access-token (nnreddit-current-oauth-token))))))))
 
 (defun nnreddit-post-message (recipient subject text)
   (let ((params
@@ -89,14 +100,7 @@
     (nnreddit-put-url "https://oauth.reddit.com/api/compose" params)))
 
 (defun nnreddit-get-messages ()
-  (with-current-buffer (nnreddit-fetch-url "https://oauth.reddit.com/message/inbox.json")
-    (goto-char (point-min))
-    (re-search-forward "^$")
-    (delete-region (point) (point-min))
-    (let ((json-object-type 'plist))
-      (let ((value (json-read)))
-        (kill-buffer)
-        value))))
+  (nnreddit-fetch-url "https://oauth.reddit.com/message/inbox.json"))
 
 ;; Example Code
 
@@ -106,8 +110,7 @@
 ;; (switch-to-buffer
 ;;  (nnreddit-fetch-url "https://oauth.reddit.com/api/v1/me"))
 
-;; (switch-to-buffer
-;;  (nnreddit-post-message "physicologist" "From emacs" "Here it is"))
+;; (nnreddit-post-message "physicologist" "Here comes more" "Whoop! There is is.")
 
 ;; (map 'vector (lambda (x) (plist-get (plist-get x :data) :body)) (plist-get (plist-get (nnreddit-get-messages) :data) :children))
 

@@ -112,19 +112,19 @@
 
 ;;;;;  Reddit Message Mode bits
 
-(defvar reddit-message-mode-message-data (vector))
+(defvar reddit-messages-mode-message-data (vector))
 
-(defun reddit-message-mode-revert-messages ()
-  (setq reddit-message-mode-message-data
+(defun reddit-messages-mode-revert-messages ()
+  (setq reddit-messages-mode-message-data
         (plist-dive (nnreddit-get-messages) :data :children))
   (setq tabulated-list-entries
-        (map 'list #'nnreddit-parse-message reddit-message-mode-message-data))
+        (map 'list #'nnreddit-parse-message reddit-messages-mode-message-data))
   (tabulated-list-print))
 
-(defvar reddit-message-mode-map
+(defvar reddit-messages-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
-    (define-key map (kbd "RET") 'reddit-message-display)
+    (define-key map (kbd "RET") 'reddit-messages-display)
     map))
 
 (defun plist-dive (plist &rest args)
@@ -132,7 +132,7 @@
       (apply #'plist-dive (cons (plist-get plist (car args)) (cdr args)))
     plist))
 
-(defun reddit-message-display ()
+(defun reddit-messages-display ()
   (interactive)
   ;; (message (concat "current line ID is: " (tabulated-list-get-id))))
   (message
@@ -140,26 +140,26 @@
     (elt
      (cl-remove-if-not
       (lambda (x) (equal (plist-dive x :data :id) (tabulated-list-get-id)))
-      reddit-message-mode-message-data)
+      reddit-messages-mode-message-data)
      0)
     :data :body)))
 
-(define-derived-mode reddit-message-mode
+(define-derived-mode reddit-messages-mode
   tabulated-list-mode "Reddit" "Major Mode for Reddit messages"
   (setq tabulated-list-format
         (vector '("Author" 21 t)
                 '("Title" 100 t)))
   (tabulated-list-init-header)
-  (reddit-message-mode-revert-messages)
+  (reddit-messages-mode-revert-messages)
   (add-hook 'tabulated-list-revert-hook
-            #'reddit-message-mode-revert-messages))
+            #'reddit-messages-mode-revert-messages))
 
-(defun reddit-message ()
+(defun reddit-messages ()
   (interactive)
   (switch-to-buffer
    (let ((buffer (get-buffer-create "*Reddit Messages*")))
      (with-current-buffer buffer
-       (reddit-message-mode)
+       (reddit-messages-mode)
        buffer))))
 
 ;; Example Code

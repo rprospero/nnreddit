@@ -91,6 +91,16 @@
            ("to" ,recipient))))
     (nnreddit-put-url "https://oauth.reddit.com/api/compose" params)))
 
+(defun nnreddit-get-messages ()
+  (with-current-buffer (nnreddit-fetch-url "https://oauth.reddit.com/message/inbox.json")
+    (goto-char (point-min))
+    (re-search-forward "^$")
+    (delete-region (point) (point-min))
+    (let ((json-object-type 'plist))
+      (let ((value (json-read)))
+        (kill-buffer)
+        value))))
+
 ;; Example Code
 
 ;; (switch-to-buffer
@@ -101,6 +111,8 @@
 
 ;; (switch-to-buffer
 ;;  (nnreddit-post-message "physicologist" "From emacs" "Here it is"))
+
+;; (map 'vector (lambda (x) (plist-get (plist-get x :data) :body)) (plist-get (plist-get (nnreddit-get-messages) :data) :children))
 
 ;;;; Basic nnreddit code
 

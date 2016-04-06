@@ -170,7 +170,7 @@
 
 
 (defun reddit-message (msg)
-  (switch-to-buffer-other-window
+  (display-buffer
    (let ((buffer (get-buffer-create
                   (concat "*Reddit Message: "
                           (plist-dive msg :data :subject)

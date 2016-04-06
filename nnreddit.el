@@ -56,9 +56,6 @@
                "https://github.com/rprospero/nnreddit")))
     nnreddit-oauth-token))
 
-(nnreddit-current-oauth-token)
-(unless nnreddit-oauth-token
-  (print "Hello"))
 
 (defun nnreddit-fetch-url (url)
   (oauth2-url-retrieve-synchronously

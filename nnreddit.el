@@ -135,14 +135,12 @@
 (defun reddit-messages-display ()
   (interactive)
   ;; (message (concat "current line ID is: " (tabulated-list-get-id))))
-  (message
-   (plist-dive
-    (elt
-     (cl-remove-if-not
-      (lambda (x) (equal (plist-dive x :data :id) (tabulated-list-get-id)))
-      reddit-messages-mode-message-data)
-     0)
-    :data :body)))
+  (reddit-message
+   (elt
+    (cl-remove-if-not
+     (lambda (x) (equal (plist-dive x :data :id) (tabulated-list-get-id)))
+     reddit-messages-mode-message-data)
+    0)))
 
 (define-derived-mode reddit-messages-mode
   tabulated-list-mode "Reddit" "Major Mode for Reddit messages"
@@ -160,6 +158,28 @@
    (let ((buffer (get-buffer-create "*Reddit Messages*")))
      (with-current-buffer buffer
        (reddit-messages-mode)
+       buffer))))
+
+(defun reddit-message-unescape (msg)
+  (replace-regexp-in-string
+   "&gt;" ">"
+   (replace-regexp-in-string
+    "&lt;" "<"
+    (replace-regexp-in-string
+     "&amp;" "&" msg))))
+
+
+(defun reddit-message (msg)
+  (switch-to-buffer-other-window
+   (let ((buffer (get-buffer-create
+                  (concat "*Reddit Message: "
+                          (plist-dive msg :data :subject)
+                          "*"))))
+     (with-current-buffer buffer
+       (insert
+        (reddit-message-unescape
+         (plist-dive msg :data :body)))
+       (markdown-mode)
        buffer))))
 
 ;; Example Code

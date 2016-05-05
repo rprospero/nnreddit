@@ -160,15 +160,6 @@
        (reddit-messages-mode)
        buffer))))
 
-(defun reddit-message-unescape (msg)
-  (replace-regexp-in-string
-   "&gt;" ">"
-   (replace-regexp-in-string
-    "&lt;" "<"
-    (replace-regexp-in-string
-     "&amp;" "&" msg))))
-
-
 (defun reddit-message (msg)
   (display-buffer
    (let ((buffer (get-buffer-create
@@ -178,9 +169,8 @@
      (with-current-buffer buffer
        (read-only-mode -1)
        (erase-buffer)
-       (insert
-        (reddit-message-unescape
-         (plist-dive msg :data :body)))
+       (insert (plist-dive msg :data :body))
+       (mm-url-decode-entities)
        (markdown-mode)
        (read-only-mode 1)
        buffer))))

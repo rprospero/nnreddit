@@ -53,7 +53,7 @@
                ""
                "identity privatemessages"
                "foo"
-               "https://github.com/rprospero/nnreddit")))
+               "http://rprospero.github.io/nnreddit/index.html")))
     nnreddit-oauth-token))
 
 (defun nnreddit-parse-body (buffer)

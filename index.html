@@ -11,7 +11,7 @@
     </div>
   </body>
   <script>
-    var token = window.location.href.split("token=")
+    var token = window.location.href.split("code=")
     if(token.length>1) {
       token = token[1].split("&")[0];
       document.getElementById("token").innerHTML = token;

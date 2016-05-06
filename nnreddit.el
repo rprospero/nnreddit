@@ -39,35 +39,14 @@
 
 ;; Oauth stuff
 
-(defvar nnreddit-oauth-token '()
-  "The current oauth-token for the reddit account")
-
-(defvar nnreddit-oauth-auth '()
-  "The current auth string for the reddit account")
-
-(defun nnreddit-current-oauth-auth ()
-  (unless nnreddit-oauth-auth
-    (setq nnreddit-oauth-auth
-          (oauth2-request-authorization
-           "https://www.reddit.com/api/v1/authorize?response_type=token&state='foo'&duration=permanent"
-           "jMzai5COV_P9zg"
-           "identity privatemessages read"
-           "foo"
-           "http://rprospero.github.io/nnreddit/index.html")))
-  nnreddit-oauth-auth)
-
-
 (defun nnreddit-current-oauth-token ()
-  (progn
-      (unless nnreddit-oauth-token
-        (setq nnreddit-oauth-token
-              (oauth2-request-access
-               "https://jMzai5COV_P9zg@www.reddit.com/api/v1/access_token"
-               "jMzai5COV_P9zg"
-               ""
-               (nnreddit-current-oauth-auth)
-               "http://rprospero.github.io/nnreddit/index.html")))
-    nnreddit-oauth-token))
+  (oauth2-auth-and-store
+   "https://www.reddit.com/api/v1/authorize?response_type=token&state='foo'&duration=permanent"
+   "https://jMzai5COV_P9zg@www.reddit.com/api/v1/access_token"
+   "identity read privatemessages"
+   "jMzai5COV_P9zg"
+   ""
+   "http://rprospero.github.io/nnreddit/index.html"))
 
 (defun nnreddit-parse-body (buffer)
   (with-current-buffer buffer

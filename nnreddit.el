@@ -47,7 +47,7 @@
       (unless nnreddit-oauth-token
         (setq nnreddit-oauth-token
               (oauth2-auth
-               "https://www.reddit.com/api/v1/authorize?response_type=token&state='foo'&duration=temporary"
+               "https://www.reddit.com/api/v1/authorize?response_type=token&state='foo'&duration=permanent"
                "https://jMzai5COV_P9zg@www.reddit.com/api/v1/access_token"
                "jMzai5COV_P9zg"
                ""

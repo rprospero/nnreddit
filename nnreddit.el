@@ -74,7 +74,7 @@
     (goto-char (point-min))
     (re-search-forward "^$")
     (delete-region (point) (point-min))
-    (let ((json-object-type 'plist))
+    (let ((json-object-type 'alist))
       (let ((value (json-read)))
         (kill-buffer)
         value))))
@@ -117,10 +117,10 @@
 
 (defun nnreddit-parse-message (message)
   (list
-   (plist-dive message :data :id)
+   (alist-dive message 'data 'id)
    (vector
-    (plist-dive message :data :author)
-    (plist-dive message :data :subject))))
+    (alist-dive message 'data 'author)
+    (alist-dive message 'data 'subject))))
 
 
 ;;;;;  Reddit Message Mode bits
@@ -129,7 +129,7 @@
 
 (defun reddit-messages-mode-revert-messages ()
   (setq reddit-messages-mode-message-data
-        (plist-dive (nnreddit-get-messages) :data :children))
+        (alist-dive (nnreddit-get-messages) 'data 'children))
   (setq tabulated-list-entries
         (map 'list #'nnreddit-parse-message reddit-messages-mode-message-data))
   (tabulated-list-print))
@@ -140,10 +140,10 @@
     (define-key map (kbd "RET") 'reddit-messages-display)
     map))
 
-(defun plist-dive (plist &rest args)
+(defun alist-dive (alist &rest args)
   (if args
-      (apply #'plist-dive (cons (plist-get plist (car args)) (cdr args)))
-    plist))
+      (apply #'alist-dive (cons (assoc-default (car args) alist) (cdr args)))
+    alist))
 
 (defun reddit-messages-display ()
   (interactive)
@@ -151,7 +151,7 @@
   (reddit-message
    (elt
     (cl-remove-if-not
-     (lambda (x) (equal (plist-dive x :data :id) (tabulated-list-get-id)))
+     (lambda (x) (equal (alist-dive x 'data 'id) (tabulated-list-get-id)))
      reddit-messages-mode-message-data)
     0)))
 
@@ -177,12 +177,12 @@
   (display-buffer
    (let ((buffer (get-buffer-create
                   (concat "*Reddit Message: "
-                          (plist-dive msg :data :subject)
+                          (alist-dive msg 'data 'subject)
                           "*"))))
      (with-current-buffer buffer
        (read-only-mode -1)
        (erase-buffer)
-       (insert (plist-dive msg :data :body))
+       (insert (alist-dive msg 'data 'body))
        (mm-url-decode-entities)
        (markdown-mode)
        (read-only-mode 1)

@@ -234,13 +234,13 @@ according to the given format string."
   :group 'nnreddit)
 
 (defconst nnreddit-subreddits-url
-  "https://www.reddit.com/subreddits.json?limit=100")
+  "https://oauth.reddit.com/subreddits.json?limit=100")
 
 (defconst nnreddit-subreddit-listing-url
-  "https://www.reddit.com/r/%s/.json?limit=%d")
+  "https://oauth.reddit.com/r/%s/.json?limit=%d")
 
 (defconst nnreddit-comments-url
-  "https://www.reddit.com/r/%s/comments/%s/.json")
+  "https://oauth.reddit.com/r/%s/comments/%s/.json")
 
 (defconst nnreddit-comment-kind "t1")
 (defconst nnreddit-link-kind "t3")
@@ -276,25 +276,16 @@ according to the given format string."
 
 (defun nnreddit-retrieve-subreddit-list-json ()
   ;; (message "fetching subreddit list")
-  (with-temp-buffer
-    (mm-url-insert nnreddit-subreddits-url)
-    (goto-char (point-min))
-    (json-read)))
+  (nnreddit-fetch-url nnreddit-subreddits-url))
 
 (defun nnreddit-retrieve-subreddit-json (subreddit)
   ;; (message "fetching listing")
-  (with-temp-buffer
-    (mm-url-insert (format nnreddit-subreddit-listing-url
-                           subreddit nnreddit-link-count))
-    (goto-char (point-min))
-    (json-read)))
+  (nnreddit-fetch-url (format nnreddit-subreddit-listing-url
+                              subreddit nnreddit-link-count)))
 
 (defun nnreddit-retrieve-comments-json (subreddit reddit-id)
   ;; (message "fetching comments")
-  (with-temp-buffer
-    (mm-url-insert (format nnreddit-comments-url subreddit reddit-id))
-    (goto-char (point-min))
-    (json-read)))
+  (nnreddit-fetch-url (format nnreddit-comments-url subreddit reddit-id)))
 
 (defun nnreddit-parse-subreddit-description (data)
   (let ((kind (assoc-default 'kind data)))

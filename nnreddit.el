@@ -39,29 +39,21 @@
 
 ;; Oauth stuff
 
-(defvar nnreddit-oauth-token '()
-  "The current oauth-token for the reddit account")
-
 (defun nnreddit-current-oauth-token ()
-  (progn
-      (unless nnreddit-oauth-token
-        (setq nnreddit-oauth-token
-              (oauth2-auth
-               "https://www.reddit.com/api/v1/authorize?response_type=token&state='foo'&duration=temporary"
-               "https://jMzai5COV_P9zg@www.reddit.com/api/v1/access_token"
-               "jMzai5COV_P9zg"
-               ""
-               "identity privatemessages"
-               "foo"
-               "https://github.com/rprospero/nnreddit")))
-    nnreddit-oauth-token))
+  (oauth2-auth-and-store
+   "https://www.reddit.com/api/v1/authorize?response_type=token&state='foo'&duration=permanent"
+   "https://jMzai5COV_P9zg@www.reddit.com/api/v1/access_token"
+   "identity read privatemessages"
+   "jMzai5COV_P9zg"
+   ""
+   "http://rprospero.github.io/nnreddit/index.html"))
 
 (defun nnreddit-parse-body (buffer)
   (with-current-buffer buffer
     (goto-char (point-min))
     (re-search-forward "^$")
     (delete-region (point) (point-min))
-    (let ((json-object-type 'plist))
+    (let ((json-object-type 'alist))
       (let ((value (json-read)))
         (kill-buffer)
         value))))
@@ -104,10 +96,10 @@
 
 (defun nnreddit-parse-message (message)
   (list
-   (plist-dive message :data :id)
+   (alist-dive message 'data 'id)
    (vector
-    (plist-dive message :data :author)
-    (plist-dive message :data :subject))))
+    (alist-dive message 'data 'author)
+    (alist-dive message 'data 'subject))))
 
 
 ;;;;;  Reddit Message Mode bits
@@ -116,7 +108,7 @@
 
 (defun reddit-messages-mode-revert-messages ()
   (setq reddit-messages-mode-message-data
-        (plist-dive (nnreddit-get-messages) :data :children))
+        (alist-dive (nnreddit-get-messages) 'data 'children))
   (setq tabulated-list-entries
         (map 'list #'nnreddit-parse-message reddit-messages-mode-message-data))
   (tabulated-list-print))
@@ -127,10 +119,10 @@
     (define-key map (kbd "RET") 'reddit-messages-display)
     map))
 
-(defun plist-dive (plist &rest args)
+(defun alist-dive (alist &rest args)
   (if args
-      (apply #'plist-dive (cons (plist-get plist (car args)) (cdr args)))
-    plist))
+      (apply #'alist-dive (cons (assoc-default (car args) alist) (cdr args)))
+    alist))
 
 (defun reddit-messages-display ()
   (interactive)
@@ -138,7 +130,7 @@
   (reddit-message
    (elt
     (cl-remove-if-not
-     (lambda (x) (equal (plist-dive x :data :id) (tabulated-list-get-id)))
+     (lambda (x) (equal (alist-dive x 'data 'id) (tabulated-list-get-id)))
      reddit-messages-mode-message-data)
     0)))
 
@@ -164,14 +156,13 @@
   (display-buffer
    (let ((buffer (get-buffer-create
                   (concat "*Reddit Message: "
-                          (plist-dive msg :data :subject)
+                          (alist-dive msg 'data 'subject)
                           "*"))))
      (with-current-buffer buffer
        (read-only-mode -1)
        (erase-buffer)
-       (insert
-        (mm-url-decode-entities-string
-         (plist-dive msg :data :body)))
+       (insert (alist-dive msg 'data 'body))
+       (mm-url-decode-entities)
        (markdown-mode)
        (read-only-mode 1)
        buffer))))
@@ -243,13 +234,13 @@ according to the given format string."
   :group 'nnreddit)
 
 (defconst nnreddit-subreddits-url
-  "https://www.reddit.com/subreddits.json?limit=100")
+  "https://oauth.reddit.com/subreddits.json?limit=100")
 
 (defconst nnreddit-subreddit-listing-url
-  "https://www.reddit.com/r/%s/.json?limit=%d")
+  "https://oauth.reddit.com/r/%s/.json?limit=%d")
 
 (defconst nnreddit-comments-url
-  "https://www.reddit.com/r/%s/comments/%s/.json")
+  "https://oauth.reddit.com/r/%s/comments/%s/.json")
 
 (defconst nnreddit-comment-kind "t1")
 (defconst nnreddit-link-kind "t3")
@@ -285,25 +276,16 @@ according to the given format string."
 
 (defun nnreddit-retrieve-subreddit-list-json ()
   ;; (message "fetching subreddit list")
-  (with-temp-buffer
-    (mm-url-insert nnreddit-subreddits-url)
-    (goto-char (point-min))
-    (json-read)))
+  (nnreddit-fetch-url nnreddit-subreddits-url))
 
 (defun nnreddit-retrieve-subreddit-json (subreddit)
   ;; (message "fetching listing")
-  (with-temp-buffer
-    (mm-url-insert (format nnreddit-subreddit-listing-url
-                           subreddit nnreddit-link-count))
-    (goto-char (point-min))
-    (json-read)))
+  (nnreddit-fetch-url (format nnreddit-subreddit-listing-url
+                              subreddit nnreddit-link-count)))
 
 (defun nnreddit-retrieve-comments-json (subreddit reddit-id)
   ;; (message "fetching comments")
-  (with-temp-buffer
-    (mm-url-insert (format nnreddit-comments-url subreddit reddit-id))
-    (goto-char (point-min))
-    (json-read)))
+  (nnreddit-fetch-url (format nnreddit-comments-url subreddit reddit-id)))
 
 (defun nnreddit-parse-subreddit-description (data)
   (let ((kind (assoc-default 'kind data)))

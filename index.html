@@ -1,0 +1,21 @@
+<html>
+  <head>
+    <title>nnreddit oauth-token</title>
+  </head>
+  <body>
+    <h2 id=token>
+      Error: No token found
+    </h2>
+    <div id=directions>
+      This page is meant to display the oauth token that reddit provides for emacs gnus to read access your reddit account.  However, there doesn't appear to be a tokenb attached to your request, so you're seeing this message instead.
+    </div>
+  </body>
+  <script>
+    var token = window.location.href.split("token=")
+    if(token.length>1) {
+      token = token[1].split("&")[0];
+      document.getElementById("token").innerHTML = token;
+      document.getElementById("directions").innerHTML = "Copy the above code into your emacs prompt to finish authenticating nnreddit"
+    }
+  </script>
+</html>

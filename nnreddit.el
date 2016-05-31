@@ -83,89 +83,6 @@
        ,(concat "bearer "
                 (oauth2-token-access-token (nnreddit-current-oauth-token))))))))
 
-(defun nnreddit-post-message (recipient subject text)
-  (let ((params
-         `(( "api_type" "json")
-           ("subject" ,subject)
-           ("text" ,text)
-           ("to" ,recipient))))
-    (nnreddit-put-url "https://oauth.reddit.com/api/compose" params)))
-
-(defun nnreddit-get-messages ()
-  (nnreddit-fetch-url "https://oauth.reddit.com/message/inbox.json"))
-
-(defun nnreddit-parse-message (message)
-  (list
-   (alist-dive message 'data 'id)
-   (vector
-    (alist-dive message 'data 'author)
-    (alist-dive message 'data 'subject))))
-
-
-;;;;;  Reddit Message Mode bits
-
-(defvar reddit-messages-mode-message-data (vector))
-
-(defun reddit-messages-mode-revert-messages ()
-  (setq reddit-messages-mode-message-data
-        (alist-dive (nnreddit-get-messages) 'data 'children))
-  (setq tabulated-list-entries
-        (map 'list #'nnreddit-parse-message reddit-messages-mode-message-data))
-  (tabulated-list-print))
-
-(defvar reddit-messages-mode-map
-  (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map tabulated-list-mode-map)
-    (define-key map (kbd "RET") 'reddit-messages-display)
-    map))
-
-(defun alist-dive (alist &rest args)
-  (if args
-      (apply #'alist-dive (cons (assoc-default (car args) alist) (cdr args)))
-    alist))
-
-(defun reddit-messages-display ()
-  (interactive)
-  ;; (message (concat "current line ID is: " (tabulated-list-get-id))))
-  (reddit-message
-   (elt
-    (cl-remove-if-not
-     (lambda (x) (equal (alist-dive x 'data 'id) (tabulated-list-get-id)))
-     reddit-messages-mode-message-data)
-    0)))
-
-(define-derived-mode reddit-messages-mode
-  tabulated-list-mode "Reddit" "Major Mode for Reddit messages"
-  (setq tabulated-list-format
-        (vector '("Author" 21 t)
-                '("Title" 100 t)))
-  (tabulated-list-init-header)
-  (reddit-messages-mode-revert-messages)
-  (add-hook 'tabulated-list-revert-hook
-            #'reddit-messages-mode-revert-messages))
-
-(defun reddit-messages ()
-  (interactive)
-  (switch-to-buffer
-   (let ((buffer (get-buffer-create "*Reddit Messages*")))
-     (with-current-buffer buffer
-       (reddit-messages-mode)
-       buffer))))
-
-(defun reddit-message (msg)
-  (display-buffer
-   (let ((buffer (get-buffer-create
-                  (concat "*Reddit Message: "
-                          (alist-dive msg 'data 'subject)
-                          "*"))))
-     (with-current-buffer buffer
-       (read-only-mode -1)
-       (erase-buffer)
-       (insert (alist-dive msg 'data 'body))
-       (mm-url-decode-entities)
-       (markdown-mode)
-       (read-only-mode 1)
-       buffer))))
 
 ;; Example Code
 
@@ -944,6 +861,111 @@ the \"root article\" of the group."
                 (if (not (string-match-p "\\\\|^Score:" gnus-visible-headers))
                     (set (make-local-variable 'gnus-visible-headers)
                          (concat gnus-visible-headers "\\|^Score:")))))))
+
+;;code for private messages-buffer
+(nnoo-declare nnredditpm)
+
+(nnoo-define-basics nnredditpm)
+
+(gnus-declare-backend "nnredditpm" 'none)
+
+
+(defun nnreddit-post-message (recipient subject text)
+  (let ((params
+         `(( "api_type" "json")
+           ("subject" ,subject)
+           ("text" ,text)
+           ("to" ,recipient))))
+    (nnreddit-put-url "https://oauth.reddit.com/api/compose" params)))
+
+(defun nnreddit-get-messages ()
+  (nnreddit-fetch-url "https://oauth.reddit.com/message/inbox.json"))
+
+(defun nnreddit-parse-message (message)
+  (list
+   (alist-dive message 'data 'id)
+   (vector
+    (alist-dive message 'data 'author)
+    (alist-dive message 'data 'subject))))
+
+(defun nnredditpm-request-group (group &optional server dont-check info)
+  (message "Running")
+  (let ((messages (alist-dive (nnreddit-get-messages) 'data 'children)))
+    (dovector (m messages)
+      (let ((id (alist-dive m 'id))
+            );(header (nnreddit-make-header m (incf n))))
+        ;(puthash n (list header l 'link) (nnreddit-get-subreddit-articles))
+                                        ;(puthash id (list n l) nnreddit-links-by-reddit-ids))))
+        t))))
+
+(nnredditpm-request-group '())
+(alist-dive (nnreddit-get-messages) 'data 'children)
+
+;;;;;  Reddit Message Mode bits
+
+(defvar reddit-messages-mode-message-data (vector))
+
+(defun reddit-messages-mode-revert-messages ()
+  (setq reddit-messages-mode-message-data
+        (alist-dive (nnreddit-get-messages) 'data 'children))
+  (setq tabulated-list-entries
+        (map 'list #'nnreddit-parse-message reddit-messages-mode-message-data))
+  (tabulated-list-print))
+
+(defvar reddit-messages-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map tabulated-list-mode-map)
+    (define-key map (kbd "RET") 'reddit-messages-display)
+    map))
+
+(defun alist-dive (alist &rest args)
+  (if args
+      (apply #'alist-dive (cons (assoc-default (car args) alist) (cdr args)))
+    alist))
+
+(defun reddit-messages-display ()
+  (interactive)
+  ;; (message (concat "current line ID is: " (tabulated-list-get-id))))
+  (reddit-message
+   (elt
+    (cl-remove-if-not
+     (lambda (x) (equal (alist-dive x 'data 'id) (tabulated-list-get-id)))
+     reddit-messages-mode-message-data)
+    0)))
+
+(define-derived-mode reddit-messages-mode
+  tabulated-list-mode "Reddit" "Major Mode for Reddit messages"
+  (setq tabulated-list-format
+        (vector '("Author" 21 t)
+                '("Title" 100 t)))
+  (tabulated-list-init-header)
+  (reddit-messages-mode-revert-messages)
+  (add-hook 'tabulated-list-revert-hook
+            #'reddit-messages-mode-revert-messages))
+
+(defun reddit-messages ()
+  (interactive)
+  (switch-to-buffer
+   (let ((buffer (get-buffer-create "*Reddit Messages*")))
+     (with-current-buffer buffer
+       (reddit-messages-mode)
+       buffer))))
+
+(defun reddit-message (msg)
+  (display-buffer
+   (let ((buffer (get-buffer-create
+                  (concat "*Reddit Message: "
+                          (alist-dive msg 'data 'subject)
+                          "*"))))
+     (with-current-buffer buffer
+       (read-only-mode -1)
+       (erase-buffer)
+       (insert (alist-dive msg 'data 'body))
+       (mm-url-decode-entities)
+       (markdown-mode)
+       (read-only-mode 1)
+       buffer))))
+
 
 (provide 'nnreddit)
 

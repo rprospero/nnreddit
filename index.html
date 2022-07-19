@@ -13,7 +13,6 @@
   <script>
     var token = window.location.href.split("access_token=")[1].split("&")[0]
     if(token.length>1) {
-      token = token[1].split("&")[0];
       document.getElementById("token").innerHTML = token;
       document.getElementById("directions").innerHTML = "Copy the above code into your emacs prompt to finish authenticating nnreddit"
     }
